@@ -1,0 +1,39 @@
+
+//versiyon, proto google tarafından geliştirilen xml ve json gibi bir veri deposu
+syntax = "proto3";
+
+
+// bir nevi namespace oalrak düşün, bu pakete ulaşmak için kullanılacak
+//tanımlar bu package içinde olacak
+package payment;
+
+
+// servisin içinde bir method tanımlandı, 
+service PaymentService {
+  rpc CalculatePayments (PaymentRequest) returns (PaymentResponse);
+}
+
+
+// servise gelecek değişkenler tanımlandı, burada 1,2,3 veri alanı tanımı, şart değil
+message PaymentRequest {
+  double principal = 1;
+  double interest = 2;
+  int32 months = 3;
+}
+
+
+// servisin içinde hesaplamada kullanılan değişkenler
+message PaymentDetail {
+  int32 month = 1;
+  double principal = 2;
+  double interestAmount = 3;
+  double totalPayment = 4;
+}
+
+
+// servisin göndereceği değişkenler tanımlandı, burada 1,2,3 veri alanı tanımı, şart değil
+// repeated  dizi tanımlar
+message PaymentResponse {
+  repeated PaymentDetail payments = 1;
+  double totalPayment = 2;
+}

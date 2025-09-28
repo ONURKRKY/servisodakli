@@ -11,6 +11,36 @@
       Anapara:<input type="number" id="principal" value="1000" /><br /><br />
       Faiz Oranı:<input type="number" id="interest" value="1000" /><br /><br />
       Vade:<input type="number" id="months" value="1000" /><br /><br />
+      <button id="grpcCalculate">gRPC ile Hesapla</button>
     </div>
+    <div id="result" style="margin-top: 10px"></div>
   </body>
 </html>
+
+<script>
+  //gRPC endpointi
+
+  //index sayfasındaki butona async listener eklendi
+  document
+    .getElementById("grpcCalculate")
+    .addEventListener("click", async () => {
+      const principal = Number(document.getElementById("principal").value);
+      const interest = Number(document.getElementById("interest").value);
+      const months = Number(document.getElementById("months").value);
+
+      if (!principal || !interest || !months) {
+        alert("tüm alanları doldurun");
+        return;
+      }
+
+      //grpc servisine istek at
+
+      const response = await fetch(
+        `/calculate?principal=${principal}&interest=${interest}&months=${months}`
+      );// fetch ile response nesnesi döndürülecek
+
+
+
+      
+    });
+</script>
