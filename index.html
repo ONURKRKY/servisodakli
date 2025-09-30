@@ -2,45 +2,106 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <title>Kart Örneği</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>Canlı Döviz Kuru</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+        background: #f5f5f5;
+      }
+      h1 {
+        color: #333;
+      }
+      .rate-box {
+        display: inline-block;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        margin-top: 20px;
+      }
+      .value {
+        font-size: 2rem;
+        color: green;
+        font-weight: bold;
+      }
+      .date {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #555;
+      }
+    </style>
   </head>
   <body>
-    <div clas="card">
-      <h2>Faiz hesapla</h2>
-      Anapara:<input type="number" id="principal" value="1000" /><br /><br />
-      Faiz Oranı:<input type="number" id="interest" value="1000" /><br /><br />
-      Vade:<input type="number" id="months" value="1000" /><br /><br />
-      <button id="grpcCalculate">gRPC ile Hesapla</button>
+   
+
+    <h2>Faiz Hesaplama</h2>
+    <div class="card">
+      Anapara (₺) :
+      <input type="number" id="principal" value="10000" /><br /><br />
+      Faiz Oranı (%) :
+      <input type="number" id="interest" value="12" /><br /><br />
+      Vade (Ay) : <input type="number" id="months" value="12" /><br /><br />
+
+      <button id="grpcCalculate">gRPC Hesapla</button>
+      <div id="result" style="margin-top: 10px"></div>
     </div>
-    <div id="result" style="margin-top: 10px"></div>
-  </body>
-</html>
 
-<script>
-  //gRPC endpointi
-
-  //index sayfasındaki butona async listener eklendi
-  document
-    .getElementById("grpcCalculate")
-    .addEventListener("click", async () => {
-      const principal = Number(document.getElementById("principal").value);
-      const interest = Number(document.getElementById("interest").value);
-      const months = Number(document.getElementById("months").value);
-
-      if (!principal || !interest || !months) {
-        alert("tüm alanları doldurun");
-        return;
-      }
-
-      //grpc servisine istek at
-
-      const response = await fetch(
-        `/calculate?principal=${principal}&interest=${interest}&months=${months}`
-      );// fetch ile response nesnesi döndürülecek
-
-
+  
+    <script>
+      let toplamodenen = 0; // gRPC toplam ödemesini saklayacak global değişken
 
       
-    });
-</script>
+      document
+        .getElementById("grpcCalculate")
+        .addEventListener("click", async () => {
+          const principal = Number(document.getElementById("principal").value);
+          const interest = Number(document.getElementById("interest").value);
+          const months = Number(document.getElementById("months").value);
+
+          if (!principal || !interest || !months) {
+            alert("Tüm değerleri girin!");
+            return;
+          }
+
+          const response = await fetch(
+            `/calculate?principal=${principal}&interest=${interest}&months=${months}`
+          );
+          const data = await response.json();
+
+          if (data.error) {
+            document.getElementById("result").innerText = "Hata: " + data.error;
+            return;
+          }
+
+          if (!data.payments || !Array.isArray(data.payments)) {
+            document.getElementById("result").innerText =
+              "Ödeme tablosu alınamadı";
+            return;
+          }
+
+          let html = `<table border="1" style="margin:auto"><tr><th>Ay</th><th>Ana Para</th><th>Faiz</th><th>Toplam Ödeme</th></tr>`;
+          data.payments.forEach((p) => {
+            html += `<tr>
+    <td>${p.month}</td>
+    <td>${p.principal.toFixed(2)}</td>
+    <td>${p.interestAmount.toFixed(2)}</td>
+    <td>${p.totalPayment.toFixed(2)}</td>
+  </tr>`;
+          });
+
+          toplamodenen = data.totalPayment;
+
+          html += `<tr><td colspan="3"><b>Toplam</b></td><td><b>${data.totalPayment.toFixed(
+            2
+          )}</b></td></tr>`;
+          html += `</table>`;
+
+          document.getElementById("result").innerHTML = html;
+        });
+
+     
+    </script>
+  </body>
+</html>
