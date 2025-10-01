@@ -4,14 +4,51 @@ const protoLoader = require("@grpc/proto-loader");
 const http = require("http");
 const path = require("path");
 const { error } = require("console");
+const cors=require("cors");
+const axios=require("axios");
+const WebSocket=require("ws");
 
 const app = express();
 
 // expressin serverını değil kendi yaratattığımız server ı kullanacağız
 const server = http.createServer(app);
+///
+
+///BURASI  WEBSOKET SERVER I
+// Bir web sayfası hangi origin (kaynak) üzerinden yüklendiyse, sadece aynı origin’deki kaynaklara direkt erişebilir.
+// Origin = Protokol + Domain + Port
+// Örneğin:
+// http://localhost:3000 → origin
+// http://127.0.0.1:3000 → farklı origin (IP ≠ localhost)
+// http://localhost:4000 → farklı origin (port ≠ 3000)
+// https://localhost:3000 → farklı origin (https ≠ http)
+// Bu yüzden bir sayfa başka bir domain/port/protokolden gelen veriye direkt erişemez.
+// Tarayıcıların güvenlik kuralı olan “Same-Origin Policy” (Aynı Kaynak Politikası) yüzünden vardır.
+// örnek olarak www.banka.com/hesap/.../$hesapno  eğer origin olmazsa başka kaynaklardan bizim backend talep atılabilirdi
+// Diyelim ki banka siten https://banka.com adresinde.
+// Sen yanlışlıkla http://kötüsitexyz.com sitesini açtın.
+// Eğer same-origin policy olmasaydı, bu kötü site senin tarayıcından doğrudan https://banka.com/api/hesap çağırabilirdi.
+//yani hesap bilgilerini başka siteye gönderirdi
+// Bu yüzden tarayıcı diyor ki: “Sadece aynı origin’den gelen isteklere izin var, diğerlerine CORS onayı lazım.”
+////
+// app.use(cors()); Bu durumda tüm domain/port/protokoller istekte bulunabilir.geliştirme ortamında kullanılır
+app.use(cors());
+
+
+//daha önce http server oluşturmuştuk,aynı server ı websoket bağladık.
+//zaten express ile değilde, http ile server yaratılmasının sebebi bu.
+// Böylece tek port (3000) üzerinden hem HTTP hem WebSocket çalışıyor
+const wss=new WebSocket.Server({server});
 
 
 
+
+
+
+
+
+
+//////BURASI GRPC SERVERI
 
 //proto payment dosyasını javascripte dönüşütürüyor, paymentserver dosyasında aynısı tanımlandı
 const packageDef = protoLoader.loadSync("payment.proto", {});
