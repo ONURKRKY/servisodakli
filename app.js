@@ -10,6 +10,9 @@ const app = express();
 // expressin serverını değil kendi yaratattığımız server ı kullanacağız
 const server = http.createServer(app);
 
+
+
+
 //proto payment dosyasını javascripte dönüşütürüyor, paymentserver dosyasında aynısı tanımlandı
 const packageDef = protoLoader.loadSync("payment.proto", {});
 
@@ -27,6 +30,12 @@ const client = new paymentPackage.PaymentService(
 );
 
 
+
+// res.send("Merhaba") → direkt metin gönderir.
+// res.json({ ad: "Onur" }) → JSON gönderir.
+// res.sendFile("index.html") → dosyanın içeriğini gönderir.
+//yani server(3000 portunda çalışıyor) ./.  talebi geldiğinde index.hetml dosyasını karşıya gönderir.
+ 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -68,11 +77,17 @@ if(!response || !response.payments){
 
 
 //hiçbir sıkıntı yoksa frontend tarafına res mesajı gönderiyor
+//json nesnesi göndermek için res.json() kullanılır
 res.json(response);
 
 });
 
 });
+
+
+
+// Küçük/orta ölçekli basit uygulamalarda → app.listen yeterlidir.
+// Eğer WebSocket, gRPC Gateway, birden fazla protokol gibi şeyler ekleyeceksen → server.listen kullanırsın.
 
 server.listen(3000,()=>{console.log("3000 partunda çalışıyor");
 })
