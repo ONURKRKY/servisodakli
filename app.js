@@ -4,9 +4,10 @@ const protoLoader = require("@grpc/proto-loader");
 const http = require("http");
 const path = require("path");
 const { error } = require("console");
-const cors=require("cors");
-const axios=require("axios");
-const WebSocket=require("ws");
+const cors = require("cors");
+const axios = require("axios");
+const WebSocket = require("ws");
+const { unescape } = require("querystring");
 
 const app = express();
 
@@ -34,16 +35,76 @@ const server = http.createServer(app);
 // app.use(cors()); Bu durumda tüm domain/port/protokoller istekte bulunabilir.geliştirme ortamında kullanılır
 app.use(cors());
 
-
 //daha önce http server oluşturmuştuk,aynı server ı websoket bağladık.
 //zaten express ile değilde, http ile server yaratılmasının sebebi bu.
 // Böylece tek port (3000) üzerinden hem HTTP hem WebSocket çalışıyor
-const wss=new WebSocket.Server({server});
+const wss = new WebSocket.Server({ server });
 
+// döviz kurunu almak için apiye istek atan fonksiyon
+//Normal function ile tanımlanan fonksiyonlar tamamen hoist edilir,
+// yani fonksiyon tanımı kodda aşağıda olsa bile üstte çağrılabilir:
+// var ile tanımlanan değişkenler declaration kısmı hoist edilir ama değer ataması edilmez.
+// let ve const ile tanımlanan değişkenler hoist edilmez (temporal dead zone hatası verir).
+// Fonksiyonun asenkron olduğunu belirtir. Yani içinde await kullanabilirsin
+// ve bu fonksiyon her zaman Promise döndürür.
+async function getExchangeRate() {
+  try {
+    //axios.get(url)
+    //Axios, HTTP isteği yapmak için kullanılan popüler bir kütüphanedir.
+    //.get() metodu GET isteği atar ve bir Promise döndürür.
+    const response = await axios.get("https://open.er-api.com/v6/latest/USD");
+    // hepsi defined geldiyse
+    if (
+      response.data &&
+      response.data.rates &&
+      response.data.rates.TRY !== undefined
+    ) {
+      return response.data.rates.TRY;
+    } else {
+      console.error("API beklenen formatta dönmedi");
+      return null;
+    }
+  } catch (error) {
+    console.error("api istenen formatta gelmedi");
 
+    //return null; olmasa
+    // Hata veya API beklenen formatta değilse fonksiyon undefined döndürür.
+    // undefined ile null arasında küçük fark vardır: null “bilerek boş”, undefined “değer yok”.
+    return null;
+  }
+}
 
+// websoket bağlantısı dinleniyor
+//on("connection", callback) "connection" olayı, istemci WebSocket’e bağlandığında tetiklenir.
+wss.on("connection",(ws)=>{
+  console.log("yeni dokey bağlantısı kuruldu");
+  //istemciden gelen mesaj dinlenir getRate string olarak gönderilmişti
+  ws.on("message",async (msg)=>{
+    //WebSocket üzerinden gelen mesaj (msg) genellikle Buffer veya binary formatında olabilir.
+    if(msg.toString()==="getRate")
+    {
+      const rate=await getExchangeRate();
+    
+    //rate değişkeni truthy ise (yani null, undefined, 0 gibi değilse) bloğun içi çalışır.
+    if(rate){
 
+      //JSON.stringify stringe gönderiyor, çünkü json gönderemeyiz, string olmalı
+      //new Date().toLocaleString() JavaScript’te geçerli tarih ve saati, 
+      // kullanıcının yerel ayarlarına uygun bir formatta string olarak döndürmek için kullanılır.
+      ws.send(JSON.stringify({rate,date:new Date().toLocaleString()}))
+      
+    }else{
+      ws.send(JSON.stringify({err:"kur alınmadi"}))
+    }
+  }
+  })
 
+});
+
+wss.on("close",()=>{
+  console.log("web soket bağlantısı kapandı");
+  
+})
 
 
 
@@ -66,17 +127,14 @@ const client = new paymentPackage.PaymentService(
   grpc.credentials.createInsecure()
 );
 
-
-
 // res.send("Merhaba") → direkt metin gönderir.
 // res.json({ ad: "Onur" }) → JSON gönderir.
 // res.sendFile("index.html") → dosyanın içeriğini gönderir.
 //yani server(3000 portunda çalışıyor) ./.  talebi geldiğinde index.hetml dosyasını karşıya gönderir.
- 
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
-
 
 //Burada Express.js ile bir GET endpoint tanımlıyorsun.
 //calculate adresine query parametreleri ile (URL’nin sonuna ?principal=...&interest=...&months=... şeklinde) istek atıldığında çalışacak.
@@ -85,46 +143,38 @@ app.get("/calculate", (req, res) => {
   const interest = Number(req.query.interest);
   const months = Number(req.query.months);
 
+  // tüm değerler girilmediğinde cliente  hata mesajı atacak
+  if (!principal || !interest || !months) {
+    return res.status(400).json({ error: "tüm değerleri girin" });
+  }
 
+  //grpc servisine istek gönderiliyor, hata sönüşü error da, cevap responsa ile geliyor
+  client.CalculatePayments({ principal, interest, months }, (err, response) => {
+    // grpc tarafından error dönerse
+    if (err) {
+      console.error("grpc hatası", err);
+      //frontend tarafına hata mesajı gönderiyor
+      return res.json({ error: err.message });
+    }
 
-// tüm değerler girilmediğinde cliente  hata mesajı atacak
-if(!principal || !interest || !  months){
-    return res.status(400).json({error:"tüm değerleri girin"})
-}
+    //grpc den gelen mesajı consolda görmek için
+    console.log("grpc in responsu:", response);
 
-//grpc servisine istek gönderiliyor, hata sönüşü error da, cevap responsa ile geliyor
-client.CalculatePayments({principal,interest, months},(err,response)=>{
+    // eğer dönen değerde ,yani response da(içinde array ve bir değer olacak) hata varsa
+    if (!response || !response.payments) {
+      //frontend tarafına hata mesajı gönderiyor, res ve red express istek ve cevap değerleri
+      return res.json({ error: "ödeme tablosu alınamadı" });
+    }
 
- // grpc tarafından error dönerse   
-if(err){
-    console.error("grpc hatası",err);
-    //frontend tarafına hata mesajı gönderiyor
-    return res.json({error:err.message})
-}
-
-
-//grpc den gelen mesajı consolda görmek için
-console.log("grpc in responsu:", response);
-
-// eğer dönen değerde ,yani response da(içinde array ve bir değer olacak) hata varsa
-if(!response || !response.payments){
-     //frontend tarafına hata mesajı gönderiyor, res ve red express istek ve cevap değerleri
-    return res.json({error:"ödeme tablosu alınamadı"})
-}
-
-
-//hiçbir sıkıntı yoksa frontend tarafına res mesajı gönderiyor
-//json nesnesi göndermek için res.json() kullanılır
-res.json(response);
-
+    //hiçbir sıkıntı yoksa frontend tarafına res mesajı gönderiyor
+    //json nesnesi göndermek için res.json() kullanılır
+    res.json(response);
+  });
 });
-
-});
-
-
 
 // Küçük/orta ölçekli basit uygulamalarda → app.listen yeterlidir.
 // Eğer WebSocket, gRPC Gateway, birden fazla protokol gibi şeyler ekleyeceksen → server.listen kullanırsın.
 
-server.listen(3000,()=>{console.log("3000 partunda çalışıyor");
-})
+server.listen(3000, () => {
+  console.log("3000 partunda çalışıyor");
+});
