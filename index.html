@@ -57,16 +57,27 @@
       <div class="value" id="rate"></div>
       <div class="date" id="date"></div>
 
-      <button id="btn">Kur Bilgisi Güncelle</button>
+      <button id="btn">Api den Kur Bilgisi Güncelle</button>
      
     </div>
 
 
   <hr style="border: 0; border-top: 2px dashed #666; width: 60%; margin: 16px auto;">
 
+  <h2> Toplam Ödenen Faiz</h2>
+    <div class="card">
+      <div class="value" id="soapResult"></div>     
+
+      <button id="soapCalculate">Soap ile faiz hesapla</button>
+     
+    </div>
+
+
+
 
     <script>
       // gRPC toplam ödemesini saklayacak global değişken
+      // soap ile faiz hesaplamada da lullanılcak, let ile tanımlandı
       let toplamodenen = 0;
 
       document
@@ -171,6 +182,43 @@
           }
         })
 
+
+
+      // /////////////soap ile faiz hesaplama buradan başlıyor
+      // async function her zaman promise döner, response farklı bir durum
+      //bu Promise ise herhangi bir türde değerle resolve/reject olabilir.
+      //fetch() → Promise döner → Response objesi ile resolve olur
+      // Zamanla bu Promise "resolve" olur (tamamlanır) yani zamanı gelince çözümlenir
+      // ve içinde Response objesi gelir
+      //async function → Promise döner → Herhangi bir değer ile resolve olur
+      // PROMISE - Asenkron İşlem Konteyneri, ileride oalcak bir olayın sözü gibi
+      // RESPONSE - HTTP Yanıt Objesi body, status vs olur, bir yanıttır
+      // örnek olarak    const promise = fetch('/api/data');    
+      //    await: Promise'in Response ile resolve olmasını bekler.yani promise responsa o yapıyor
+      // const response = await promise; // Response obje
+
+      document.getElementById("soapCalculate").addEventListener("click", async ()=>{
+
+        // iki değer gödenrelicek ve farkı alıncak;
+        const principal=Number(document.getElementById("principal").value);
+        const totalAmount =toplamodenen;
+        //  toplam ödenen değer de önce hesapklanmalı
+        if(!principal|| !totalAmount){
+          alert("tüm değerler alınamadı");
+          return
+        }
+
+        try {
+          const response=await fetch(`/soap-calculate?principal=${principal}&totalAmount=${totalAmount}`);
+          //response u jsona dönüştürürken yine await kullanıldı
+          //Response'u Sadece Bir Kez Okuyabilirsiniz!
+          const data=await response.json()// data yine bir response oldu
+        } catch (error) {
+          
+        }
+
+
+      })
     </script>
   </body>
 </html>
