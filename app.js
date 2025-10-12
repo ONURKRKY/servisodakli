@@ -8,6 +8,7 @@ const cors = require("cors");
 const axios = require("axios");
 const WebSocket = require("ws");
 const { unescape } = require("querystring");
+const { log } = require("@grpc/grpc-js/build/src/logging");
 
 const app = express();
 
@@ -76,38 +77,30 @@ async function getExchangeRate() {
 
 // websoket bağlantısı dinleniyor
 //on("connection", callback) "connection" olayı, istemci WebSocket’e bağlandığında tetiklenir.
-wss.on("connection",(ws)=>{
+wss.on("connection", (ws) => {
   console.log("yeni dokey bağlantısı kuruldu");
   //istemciden gelen mesaj dinlenir getRate string olarak gönderilmişti
-  ws.on("message",async (msg)=>{
+  ws.on("message", async (msg) => {
     //WebSocket üzerinden gelen mesaj (msg) genellikle Buffer veya binary formatında olabilir.
-    if(msg.toString()==="getRate")
-    {
-      const rate=await getExchangeRate();
-    
-    //rate değişkeni truthy ise (yani null, undefined, 0 gibi değilse) bloğun içi çalışır.
-    if(rate){
+    if (msg.toString() === "getRate") {
+      const rate = await getExchangeRate();
 
-      //JSON.stringify stringe gönderiyor, çünkü json gönderemeyiz, string olmalı
-      //new Date().toLocaleString() JavaScript’te geçerli tarih ve saati, 
-      // kullanıcının yerel ayarlarına uygun bir formatta string olarak döndürmek için kullanılır.
-      ws.send(JSON.stringify({rate,date:new Date().toLocaleString()}))
-      
-    }else{
-      ws.send(JSON.stringify({err:"kur alınmadi"}))
+      //rate değişkeni truthy ise (yani null, undefined, 0 gibi değilse) bloğun içi çalışır.
+      if (rate) {
+        //JSON.stringify stringe gönderiyor, çünkü json gönderemeyiz, string olmalı
+        //new Date().toLocaleString() JavaScript’te geçerli tarih ve saati,
+        // kullanıcının yerel ayarlarına uygun bir formatta string olarak döndürmek için kullanılır.
+        ws.send(JSON.stringify({ rate, date: new Date().toLocaleString() }));
+      } else {
+        ws.send(JSON.stringify({ err: "kur alınmadi" }));
+      }
     }
-  }
-  })
-
+  });
 });
 
-wss.on("close",()=>{
+wss.on("close", () => {
   console.log("web soket bağlantısı kapandı");
-  
-})
-
-
-
+});
 
 //////BURASI GRPC SERVERI
 
@@ -170,6 +163,41 @@ app.get("/calculate", (req, res) => {
     //json nesnesi göndermek için res.json() kullanılır
     res.json(response);
   });
+});
+
+///////////soap hesaplama end pointi
+
+app.get("/soap-calculate", async (req, res) => {
+  //query ile dönen  bir JSON string değil, doğrudan JavaScript objesidir.
+  // req.query, Express’in otomatik oluşturduğu JavaScript objesidir. JSON metni değildir,
+  //  bu yüzden JSON.parse() yapmana gerek yoktur.
+  //json bir formattır ve string yüründedir
+  //JSON (JavaScript Object Notation), javascript objesi yapmak için const data = JSON.parse(jsonString); kullanılır
+  const principal = Number(req.query.principal);
+  const totalAmount = Number(req.query.totalAmount);
+
+  if (!principal || !totalAmount) {
+    // return kullanılmazsa alt satırlar işlemeye devam eder, aşağıdaki satırlarda herşey normalmiş gib değer göndermeye çalışır
+    //Express’in res.json() metodu, JavaScript objesini alır
+    // ve otomatik olarak:// JSON string’e çevirir,
+    // Content-Type: application/json başlığı ekler,
+    // HTTP cevabı olarak gönderir
+    return res.json({ error: "anapara ve toplam değer gerekli" });
+  }
+
+  try {
+    //soap servis urlsi//
+    // WSDL (Web Services Description Language) bir SOAP servisinin “ne iş yaptığını” ve “nasıl kullanılacağını” anlatan tanım dosyasıdır.
+    // Genelde .wsdl uzantılı XML formatında olur.
+
+
+    //İlk /wsdl → servis endpoint’inin adıdır (örneğin /calculator, /bank, /wsdl olabilir).
+    // İkinci ?wsdl → bu endpoint’in WSDL dosyasını istediğini belirtir.
+    // Yani "endpoint?wsdl" aslında bir sorgu parametresidir (query string).
+    const url = "http://localhost:8000/wsdl?wsdl";
+
+    
+  } catch (error) {}
 });
 
 // Küçük/orta ölçekli basit uygulamalarda → app.listen yeterlidir.

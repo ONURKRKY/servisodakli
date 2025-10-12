@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://example.com/interest"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns="http://schemas.xmlsoap.org/wsdl/"
+             targetNamespace="http://example.com/interest"
+             name="InterestService">
+
+  <types>
+    <xsd:schema targetNamespace="http://example.com/interest">
+      <xsd:element name="CalculateInterestRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="principal" type="xsd:double"/>
+            <xsd:element name="totalAmount" type="xsd:double"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="CalculateInterestResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="interest" type="xsd:double"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </types>
+
+  <message name="CalculateInterestInput">
+    <part name="parameters" element="tns:CalculateInterestRequest"/>
+  </message>
+  <message name="CalculateInterestOutput">
+    <part name="parameters" element="tns:CalculateInterestResponse"/>
+  </message>
+
+  <portType name="InterestPort">
+    <operation name="CalculateInterest">
+      <input message="tns:CalculateInterestInput"/>
+      <output message="tns:CalculateInterestOutput"/>
+    </operation>
+  </portType>
+
+  <binding name="InterestBinding" type="tns:InterestPort">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="CalculateInterest">
+      <soap:operation soapAction="CalculateInterest"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+  </binding>
+
+  <service name="InterestService">
+    <port name="InterestPort" binding="tns:InterestBinding">
+      <soap:address location="http://localhost:8000/wsdl"/>
+    </port>
+  </service>
+</definitions>
